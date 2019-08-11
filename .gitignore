@@ -4,6 +4,7 @@ syntax: glob
 *.swo
 *.pyc
 data
+pytorch/old
 encode-de.sh
 pytorch/de61M-root*
 pytorch/logs
