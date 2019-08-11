@@ -1,0 +1,15 @@
+# use glob syntax.
+syntax: glob
+*.swp
+*.swo
+*.pyc
+data
+encode-de.sh
+pytorch/de61M-root*
+pytorch/logs
+pytorch/loss_*.png
+pytorch/plot-loss.py
+pytorch/plot-loss.sh
+pytorch/sp_hyper.sh
+sp-model.model
+sp-model.vocab
