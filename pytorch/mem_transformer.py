@@ -741,9 +741,15 @@ class MemTransformerLM(nn.Module):
         # them together.
         if not mems: mems = self.init_mems()
 
-        tgt_len = target.size(0)
         hidden, new_mems = self._forward(data, mems=mems)
 
+        if target is None:
+            assert not self.training
+            log_probs = self.crit(hidden, target=None)
+            # log_probs = self.crit(hidden, target=data)
+            return log_probs, new_mems
+
+        tgt_len = target.size(0)
         pred_hid = hidden[-tgt_len:]
         if self.sample_softmax > 0 and self.training:
             assert self.tie_weight
