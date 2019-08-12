@@ -116,8 +116,6 @@ parser.add_argument('--eta_min', type=float, default=0.0,
                     help='min learning rate for cosine scheduler')
 parser.add_argument('--gpu0_bsz', type=int, default=-1,
                     help='batch size on gpu 0')
-parser.add_argument('--max_eval_steps', type=int, default=-1,
-                    help='max eval steps')
 parser.add_argument('--sample_softmax', type=int, default=-1,
                     help='number of samples in sampled softmax')
 parser.add_argument('--patience', type=int, default=0,
@@ -333,7 +331,7 @@ def update_dropatt(m):
     if hasattr(m, 'dropatt'):
         m.dropatt.p = args.dropatt
 
-model_pt_path = os.path.join(args.work_dir, 'model.pt')
+model_pt_path = os.path.join(args.work_dir, 'cur_model.pt')
 
 if os.path.exists(model_pt_path):
 
@@ -452,7 +450,7 @@ elif args.scheduler == 'dev_perf':
 elif args.scheduler == 'constant':
     pass
 
-optimizer_pt_path = os.path.join(args.work_dir, 'optimizer.pt')
+optimizer_pt_path = os.path.join(args.work_dir, 'cur_optimizer.pt')
 
 if os.path.exists(optimizer_pt_path):
 
@@ -481,7 +479,7 @@ logging('#non emb params = {}'.format(args.n_nonemb_param))
 # Training code
 ###############################################################################
 
-def evaluate(eval_iter):
+def evaluate(split):
     # Turn on evaluation mode which disables dropout.
     model.eval()
 
@@ -494,24 +492,42 @@ def evaluate(eval_iter):
         model.reset_length(args.eval_tgt_len,
             args.ext_len, args.mem_len+args.tgt_len-args.eval_tgt_len)
 
+    max_eval_step = corpus.get_num_batches(split)
+
     # Evaluation
-    total_len, total_loss = 0, 0.
+    total_loss = 0.0
     with torch.no_grad():
         mems = tuple()
-        for i, (data, target, seq_len) in enumerate(eval_iter):
-            if args.max_eval_steps > 0 and i >= args.max_eval_steps:
-                break
+
+        for eval_step in range(max_eval_step):
+        # for i, (data, target, seq_len) in enumerate(eval_iter):
+
+            data, target = corpus.get_batch(split, eval_step)
+
             ret = model(data, target, *mems)
             loss, mems = ret[0], ret[1:]
             loss = loss.mean()
-            total_loss += seq_len * loss.float().item()
-            total_len += seq_len
+            total_loss += loss.float().item()
+
+            if (eval_step > 0) and (eval_step % 10 == 0):
+                print ("| eval batch %6d/%6d [%7.2f%%] | avg loss: %7.3f" % (eval_step, max_eval_step, eval_step * 100.0 / max_eval_step, total_loss / eval_step))
 
     # Switch back to the training mode
     model.reset_length(args.tgt_len, args.ext_len, args.mem_len)
     model.train()
 
-    return total_loss / total_len
+    return total_loss / max_eval_step
+
+def save_model(model_name):
+
+    logging ("saving %s model..." % model_name)
+    with open(os.path.join(args.work_dir, '%s_model.pt' % model_name), 'wb') as f:
+        torch.save(model, f)
+    with open(os.path.join(args.work_dir, '%s_optimizer.pt' % model_name), 'wb') as f:
+        torch.save(optimizer.state_dict(), f)
+    with open(os.path.join(args.work_dir, '%s_state_dict.pt' % model_name), 'wb') as f:
+        torch.save (model.state_dict(), f)
+    logging ("saving %s model... done." % model_name)
 
 
 def train():
@@ -563,59 +579,40 @@ def train():
         elif args.scheduler == 'inv_sqrt':
             scheduler.step(train_step)
 
-        if train_step % args.log_interval == 0:
+        if (train_step>0) and (train_step % args.log_interval == 0):
             cur_loss = train_loss / args.log_interval
             elapsed = time.time() - log_start_time
 
             epoch = train_step / n_batches_per_epoch + 1
 
-            log_str = '| epoch %2d step %6d / %6d [%3d%%] | lr %.3g ' \
-                      '| ms/batch %5.2f | loss %5.2f' % (
-                epoch, train_step, max_step, train_step * 100 / max_step, optimizer.param_groups[0]['lr'],
+            log_str = '| epoch %2d/%2d batch %6d/%6d [%7.2f%%] | lr %.3g | ms/batch %5.2f | loss %7.3f' % (
+                epoch, args.num_epochs, train_step % n_batches_per_epoch, n_batches_per_epoch, train_step * 100.0 / max_step, 
+                optimizer.param_groups[0]['lr'],
                 elapsed * 1000 / args.log_interval, cur_loss)
 
             log_str += ' | ppl {:9.3f}'.format(math.exp(cur_loss))
             logging(log_str)
 
-            json_log_plots.write_event(Path(args.work_dir), step=train_step, loss=cur_loss, lr=optimizer.param_groups[0]['lr'])
+            json_log_plots.write_event(Path(args.work_dir), step=train_step, loss=cur_loss, lr=optimizer.param_groups[0]['lr']*100000.0)
 
             train_loss = 0
             log_start_time = time.time()
 
-        if train_step % args.eval_interval == 0:
-            logging ("saving the model...")
-            with open(os.path.join(args.work_dir, 'model.pt'), 'wb') as f:
-                torch.save(model, f)
-            with open(os.path.join(args.work_dir, 'optimizer.pt'), 'wb') as f:
-                torch.save(optimizer.state_dict(), f)
-            with open(os.path.join(args.work_dir, 'state_dict.pt'), 'wb') as f:
-                torch.save (model.state_dict(), f)
+        if (train_step>0) and (train_step % args.eval_interval == 0):
+            save_model('cur')
             with open(n_steps_txt_path, 'w') as f:
                 f.write("%s\n" % train_step)
-            logging ("saving the model... done.")
 
-            # FIXME 
+            logging ("evaluating model...")
+            val_loss = evaluate('valid')
 
-            # val_loss = evaluate(va_iter)
-            # logging('-' * 100)
-            # log_str = '| Eval {:3d} at step {:>8d} | time: {:5.2f}s ' \
-            #           '| valid loss {:5.2f}'.format(
-            #     train_step // args.eval_interval, train_step,
-            #     (time.time() - eval_start_time), val_loss)
-            # if args.dataset in ['enwik8', 'text8']:
-            #     log_str += ' | bpc {:9.5f}'.format(val_loss / math.log(2))
-            # else:
-            #     log_str += ' | valid ppl {:9.3f}'.format(math.exp(val_loss))
-            # logging(log_str)
-            # logging('-' * 100)
-            # # Save the model if the validation loss is the best we've seen so far.
-            # if not best_val_loss or val_loss < best_val_loss:
-            #     if not args.debug:
-            #         with open(os.path.join(args.work_dir, 'model.pt'), 'wb') as f:
-            #             torch.save(model, f)
-            #         with open(os.path.join(args.work_dir, 'optimizer.pt'), 'wb') as f:
-            #             torch.save(optimizer.state_dict(), f)
-            #     best_val_loss = val_loss
+            json_log_plots.write_event(Path(args.work_dir), step=train_step, val_loss=val_loss)
+
+            # Save the model if the validation loss is the best we've seen so far.
+            if not best_val_loss or val_loss < best_val_loss:
+                logging ("best valid loss so far.")
+                save_model('valid')
+                best_val_loss = val_loss
 
             # # dev-performance based learning rate annealing
             # if args.scheduler == 'dev_perf':
