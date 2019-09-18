@@ -58,7 +58,7 @@ class ModelWrapper:
                                  clamp_len      = xl_params['clamp_len'],      # -1, 
                                  sample_softmax = xl_params['sample_softmax']) # -1
 
-        state_dict_path = os.path.join(model_path, 'state_dict.pt')
+        state_dict_path = os.path.join(model_path, 'valid_state_dict.pt')
         print ("loading weights %s ..." % state_dict_path)
         model.load_state_dict(torch.load(state_dict_path))
         print ("loading weights %s ... done." % state_dict_path)

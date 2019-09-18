@@ -17,8 +17,16 @@ import torch
 from mem_transformer import MemTransformerLM
 from inference import ModelWrapper
 
-MODEL_PATH = 'de61M-root'
-SP_MODEL_PATH = '../sp-model.model'
+# MODEL_PATH = 'de61M-root'
+# SP_MODEL_PATH = '../sp-model.model'
+
+# MODEL_PATH = 'de61M-base-small-root'
+# SP_MODEL_PATH = '../sp-model.model'
+
+MODEL_PATH = 'de144M-base-small-250k-root'
+SP_MODEL_PATH = '../de-base-250k-sp-model.model'
+
+
 DEVICE = 'cuda'
 
 # TOKENS_TO_GENERATE = 42
@@ -33,29 +41,31 @@ TOP_K = 8
 
 mw = ModelWrapper.load(MODEL_PATH, SP_MODEL_PATH, DEVICE)
 
-txt = "Die Forschung an der künstlichen Intelligenz"
+# txt = "Die Forschung an der künstlichen Intelligenz"
+txt = "Die Hitzewelle, mit der sich die amerikanische Metropole New York derzeit rumschlägt, wird langsam zum immer größeren Problem: Bei Temperaturen von 40 Grad waren rund 50.000 Haushalte in Brooklyn und in Westchester County am Sonntag ohne Strom. Das teilten"
+
 
 tokens = mw.tokenize(txt)
 
 print(tokens)
 
-lp = mw.get_log_probs(tokens)
-
-print(lp)
-
-for idx in range(len(tokens)):
-    log_probs = mw.get_log_probs(tokens)[idx]
-    top_indices = torch.argsort(log_probs)[-TOP_K:]
-    top_log_probs = log_probs[top_indices]
-
-    top_k_log_probs = [(log_prob.item(), mw.sp_model.IdToPiece(idx.item()))
-                      for idx, log_prob in
-                      reversed(list(zip(top_indices, top_log_probs)))]
-
-    print ("%2d: %s -> %s" % (idx, tokens[idx], top_k_log_probs))
-
-
-sys.exit(0)
+# lp = mw.get_log_probs(tokens)
+# 
+# print(lp)
+# 
+# for idx in range(len(tokens)):
+#     log_probs = mw.get_log_probs(tokens)[idx]
+#     top_indices = torch.argsort(log_probs)[-TOP_K:]
+#     top_log_probs = log_probs[top_indices]
+# 
+#     top_k_log_probs = [(log_prob.item(), mw.sp_model.IdToPiece(idx.item()))
+#                       for idx, log_prob in
+#                       reversed(list(zip(top_indices, top_log_probs)))]
+# 
+#     print ("%2d: %s -> %s" % (idx, tokens[idx], top_k_log_probs))
+# 
+# 
+# sys.exit(0)
 
  
 # ntk = mw.next_top_k(tokens, TOP_K)

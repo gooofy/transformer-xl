@@ -4,6 +4,7 @@ import time
 import math
 import os, sys
 import json
+import random
 
 from pathlib import Path
 
@@ -535,6 +536,7 @@ def train():
     global train_loss, best_val_loss, eval_start_time, log_start_time, corpus, n_batches_per_epoch, max_step
     model.train()
     mems = tuple()
+    sample_from_batch = 0
 
     for train_step in range(n_restart_step, max_step):
 
@@ -548,8 +550,10 @@ def train():
         # logging ( list(zip(data[:, 3].tolist(), corpus.vocab.get_symbols(data[:, 3])  )) )
         # logging ( "====> data   :", data[:, 3] )
         # logging ( "====> target :", target[:, 3] )
-        # logging ( "====> data   :", corpus.vocab.get_symbols(data[:, 3]) )
-        # logging ( "====> target :", corpus.vocab.get_symbols(target[:, 3]) )
+
+        # print ( "====> data   [batch #%02d]: %s" % (sample_from_batch, ' '.join(corpus.vocab.get_symbols(data[:, sample_from_batch]))[:120] ))
+        # print ( "====> data   [batch #%02d]: %s" % (sample_from_batch, ' '.join(corpus.vocab.get_symbols(data[:, sample_from_batch])) ))
+        # print ( "====> target [batch #%02d]: %s" % (sample_from_batch, ' '.join(corpus.vocab.get_symbols(target[:, sample_from_batch]))[:120] ))
 
         ret = para_model(data, target, *mems)
         loss, mems = ret[0], ret[1:]
@@ -579,7 +583,7 @@ def train():
         elif args.scheduler == 'inv_sqrt':
             scheduler.step(train_step)
 
-        if (train_step>0) and (train_step % args.log_interval == 0):
+        if (train_step>n_restart_step) and (train_step % args.log_interval == 0):
             cur_loss = train_loss / args.log_interval
             elapsed = time.time() - log_start_time
 
@@ -598,7 +602,9 @@ def train():
             train_loss = 0
             log_start_time = time.time()
 
-        if (train_step>0) and (train_step % args.eval_interval == 0):
+            sample_from_batch = random.randint(0, args.batch_size-1)
+
+        if (train_step>n_restart_step) and (train_step % args.eval_interval == 0):
             save_model('cur')
             with open(n_steps_txt_path, 'w') as f:
                 f.write("%s\n" % train_step)

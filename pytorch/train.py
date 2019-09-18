@@ -185,6 +185,8 @@ corpus = get_lm_corpus(args.data, args.dataset)
 ntokens = len(corpus.vocab)
 args.n_token = ntokens
 
+logging('args.n_token: %d' % args.n_token)
+
 eval_batch_size = 10
 tr_iter = corpus.get_iterator('train', args.batch_size, args.tgt_len,
     device=device, ext_len=args.ext_len)
