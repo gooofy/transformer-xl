@@ -60,7 +60,7 @@ class ModelWrapper:
 
         state_dict_path = os.path.join(model_path, 'valid_state_dict.pt')
         print ("loading weights %s ..." % state_dict_path)
-        model.load_state_dict(torch.load(state_dict_path))
+        model.load_state_dict(torch.load(state_dict_path, map_location=torch.device(device)))
         print ("loading weights %s ... done." % state_dict_path)
 
         # with open(os.path.join(MODEL_PATH, 'model.pt'), 'rb') as f:
@@ -68,7 +68,6 @@ class ModelWrapper:
         # model.apply(update_dropout)
         # model.apply(update_dropatt)
 
-        device = 'cuda'
         para_model = model.to(device)
 
         # print ("loading model %s ... done." % MODEL_PATH)

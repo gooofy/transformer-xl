@@ -20,7 +20,10 @@ from inference import ModelWrapper
 MODEL_PATH = 'de163M-base-root'
 SP_MODEL_PATH = 'de163M-base-root/sp-model.model'
 
-DEVICE = 'cuda'
+if torch.cuda.is_available():
+    DEVICE = 'cuda'
+else:
+    DEVICE = 'cpu'
 
 # TOKENS_TO_GENERATE = 42
 TOKENS_TO_GENERATE = 256

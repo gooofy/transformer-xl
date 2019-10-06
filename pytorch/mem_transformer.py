@@ -114,9 +114,9 @@ class MultiHeadAttn(nn.Module):
         attn_score.mul_(self.scale)
         if attn_mask is not None and attn_mask.any().item():
             if attn_mask.dim() == 2:
-                attn_score.masked_fill_(attn_mask[None,:,:,None], -float('inf'))
+                attn_score.masked_fill_(attn_mask[None,:,:,None].bool(), -float('inf'))
             elif attn_mask.dim() == 3:
-                attn_score.masked_fill_(attn_mask[:,:,:,None], -float('inf'))
+                attn_score.masked_fill_(attn_mask[:,:,:,None].bool(), -float('inf'))
 
         # [qlen x klen x bsz x n_head]
         attn_prob = F.softmax(attn_score, dim=1)
@@ -261,10 +261,10 @@ class RelPartialLearnableMultiHeadAttn(RelMultiHeadAttn):
         if attn_mask is not None and attn_mask.any().item():
             if attn_mask.dim() == 2:
                 attn_score = attn_score.float().masked_fill(
-                    attn_mask[None,:,:,None], -float('inf')).type_as(attn_score)
+                    attn_mask[None,:,:,None].bool(), -float('inf')).type_as(attn_score)
             elif attn_mask.dim() == 3:
                 attn_score = attn_score.float().masked_fill(
-                    attn_mask[:,:,:,None], -float('inf')).type_as(attn_score)
+                    attn_mask[:,:,:,None].bool(), -float('inf')).type_as(attn_score)
 
         # [qlen x klen x bsz x n_head]
         attn_prob = F.softmax(attn_score, dim=1)
@@ -347,9 +347,9 @@ class RelLearnableMultiHeadAttn(RelMultiHeadAttn):
         #### compute attention probability
         if attn_mask is not None and attn_mask.any().item():
             if attn_mask.dim() == 2:
-                attn_score.masked_fill_(attn_mask[None,:,:,None], -float('inf'))
+                attn_score.masked_fill_(attn_mask[None,:,:,None].bool(), -float('inf'))
             elif attn_mask.dim() == 3:
-                attn_score.masked_fill_(attn_mask[:,:,:,None], -float('inf'))
+                attn_score.masked_fill_(attn_mask[:,:,:,None].bool(), -float('inf'))
 
         # [qlen x klen x bsz x n_head]
         attn_prob = F.softmax(attn_score, dim=1)
