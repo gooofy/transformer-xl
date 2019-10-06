@@ -12,7 +12,6 @@ import torch.cuda
 import sentencepiece as spm
 
 from mem_transformer import MemTransformerLM
-# from data_utils import SPVocab
 
 class ModelWrapper:
 
@@ -138,12 +137,6 @@ class ModelWrapper:
         log_probs = self.get_log_probs(tokens)[-1]
         top_indices = torch.argsort(log_probs)[-top_k:]
         top_log_probs = log_probs[top_indices]
-
-        # all_xs = torch.LongTensor([ self.sp_model.PieceToId(token) for token in tokens ])
-
-        # return [(self.vocab.idx2sym[idx], log_prob.item())
-        #         for idx, log_prob in
-        #         reversed(list(zip(top_indices, top_log_probs)))]
 
         return [(log_prob.item(), self.sp_model.IdToPiece(idx.item()))
                 for idx, log_prob in
