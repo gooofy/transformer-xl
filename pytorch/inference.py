@@ -23,17 +23,13 @@ class ModelWrapper:
         self.model.eval()
 
     @classmethod
-    def load (cls, model_path, sp_model_path, device):
+    def load (cls, model_path, sp_model_path, device, print_stats = True):
 
         paramspath = os.path.join(model_path, 'params.json')
         with open(paramspath, 'r') as paramsf:
             xl_params = json.loads(paramsf.read())
 
         print (repr(xl_params))
-
-        # cutoffs, tie_projs = [], [False]
-        # cutoffs = [3500, 7500, 37500]
-        # tie_projs += [True] * len(cutoffs)
 
         model = MemTransformerLM(xl_params['ntokens'],                         # 50000,
                                  xl_params['n_layer'],                         # 16,
@@ -59,8 +55,17 @@ class ModelWrapper:
 
         state_dict_path = os.path.join(model_path, 'valid_state_dict.pt')
         print ("loading weights %s ..." % state_dict_path)
-        model.load_state_dict(torch.load(state_dict_path, map_location=torch.device(device)))
+        tensor_dict = torch.load(state_dict_path, map_location=torch.device(device))
+        model.load_state_dict(tensor_dict)
         print ("loading weights %s ... done." % state_dict_path)
+
+        if print_stats:
+            tensor_list = list(tensor_dict.items())
+            for layer_tensor_name, tensor in tensor_list:
+                print("Layer %-42s: %9d elements" % (layer_tensor_name, torch.numel(tensor)))
+
+            pytorch_total_params = sum(p.numel() for p in model.parameters())
+            print ("Total # params: %d" % pytorch_total_params)
 
         # with open(os.path.join(MODEL_PATH, 'model.pt'), 'rb') as f:
         #     model = torch.load(f)
